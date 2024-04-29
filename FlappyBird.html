@@ -1,0 +1,232 @@
+
+<!--  Sofia Matthaiaki - TP4856  -->
+
+<!--  Basic "Flappy Bird" Game  -->
+
+<!--  Note: After the "Game Over" message you have to run(!) the code again. -->
+
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <style>
+            img {
+                display:none; 
+            }
+
+        </style>
+    </head>
+    <body>
+        <img src="bg.png" alt="" id="bg">
+        <canvas width="800" height="650" style="outline: 1px solid black;"></canvas>
+    </body>
+    <script>
+        let canvas = document.querySelector("canvas");
+        let ctx = canvas.getContext("2d");
+
+        //  --  The image of the bird  --  //
+        let bird = new Image;
+        bird.src = "bird.png";
+        const sWidth = 49.2;  //width of a single frame of the sprite sheet
+        const sHeight = 50;   //height of a single frame of the sprite sheet
+
+        //  --  The pipe(s)  --  //
+        let pipes = [] //array of pipes (initially empty)
+        let pipeWidth = 81
+        let pipeHeight = 500
+        let pipe = new Image
+        pipe.src = "pipe.png"  //the image of the pipe
+        
+        //  --  Function to generate random numbers  --  //
+
+        /*  This function generates a random number between the lowestNumber and the highestNumber.
+            The difference between the generated number and the previous number must be greater than the difference variable.
+            This is to avoid the generation of two consecutive numbers that are too close to each other.
+        */
+        let previousRandomNumber = 0;
+        let difference;
+        function generateRandomNumber(randomNumber, lowestNumber, highestNumber, difference) {
+            previousRandomNumber = randomNumber;
+            randomNumber = Math.floor(Math.random() * (highestNumber - lowestNumber + 1) + lowestNumber); //+1 value is used to include the highestNumber
+            while (Math.abs(randomNumber - previousRandomNumber) < difference) {
+                randomNumber = Math.floor(Math.random() * (highestNumber - lowestNumber + 1) + lowestNumber);
+            }
+            return randomNumber;
+        }
+
+
+        /*When the bird image is loaded, the draw and the birdMovement functions are called.
+        There are two functions because I want to change the frame of the bird every 60ms but I want to update the canvas every 15ms.
+        I do this because I want to have a smooth animation of the bird, which's animation has to be slower, while the pipes are moving faster.
+        */
+        bird.onload= function() {  
+            k = 0;
+            draw();
+            birdMovement(); //to update the bird frame
+        };
+
+
+        let k = 0; //frame number
+        let time; //time of the last frame
+        let time2;
+
+        let xBird = 150; //bird position (standard)
+        let yBird = 200; //bird position (initial)
+
+        //  --  Main function to update everything in the canvas  --  //
+        function draw() {
+
+            /*
+            In the following if-statement, we check if the bird is not out of the canvas.
+            If it is, we stop the game.
+            If it is not, we check if the bird is in the same x position as the pipes.
+            If it is, we check if the bird is in the same y position as the pipes.
+            If it is, it means we have a collision and the game is over.
+
+            In some checks, we use the -2, +2 and -10 values.
+            This is because the bird and the pipe in the images, when they collide, they don't appear to collide.
+            I use these values to make the collision more realistic.
+            */
+
+            if (yBird-2 >0 && yBird+sHeight-10 < canvas.height) { //if the bird is not out of the canvas
+                for (let i = 0; i < pipes.length; i++) { //for each pipe
+                    if (xBird+sWidth > pipes[i].x && xBird < pipes[i].x + pipeWidth) { //if the bird is in the same x position as the pipe
+                        if (i%2 == 0) { //if the pipe is the lower pipe
+                            if (yBird+sHeight-10 > pipes[i].y) { //if the bird is in the same y position as the lower pipe
+                                console.log("OVERLAP!!!")
+                                //GAME OVER MESSAGE
+                                ctx.font = "30px serif";
+                                ctx.fillStyle = 'red'
+                                ctx.textAlign = 'center'
+                                ctx.fillText("GAME OVER!", canvas.width/2, canvas.height/2);
+                                return;
+                            }
+                        }
+                        else { //if the pipe is the upper pipe
+                            if (yBird + 2 < pipes[i].y + pipeHeight) { //if the bird is in the same y position as the upper pipe
+                                console.log("OVERLAP!!!")
+                                //GAME OVER MESSAGE
+                                ctx.font = "30px serif";
+                                ctx.fillStyle = 'red'
+                                ctx.textAlign = 'center'
+                                ctx.fillText("GAME OVER!", canvas.width/2, canvas.height/2);
+                                return;
+                            }
+                        }
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+            else {
+                //OVERLAP!!
+                console.log("OVERLAP!!!")
+                //GAME OVER MESSAGE
+                ctx.font = "30px serif";
+                ctx.fillStyle = 'red'
+                ctx.textAlign = 'center'
+                ctx.fillText("GAME OVER!", canvas.width/2, canvas.height/2);
+            }
+             
+            let now = Date.now(); //current time
+
+            if (now - time < 15) //if the time between the last frame and the current frame is less than 15ms, do not draw the next frame
+                return;
+
+            time = now;
+
+            let bg = document.getElementById("bg");
+            let ratio = bg.width / bg.height;  //ratio of the background image 
+            ctx.drawImage(bg, 0, 0, ctx.canvas.height*ratio, ctx.canvas.height); //the use of the ratio makes the background image fit the canvas
+
+            ctx.drawImage(bird, sWidth*k, 0, sWidth, sHeight, xBird, yBird, sWidth, sHeight);
+
+            // Draw pipes:
+            for (let i = 0; i < pipes.length; i++) {
+                if(i%2 == 0) {  //if i is even, draw the pipe normally because it is the bottom pipe
+                    let pipe = pipes[i]
+                    ctx.drawImage(pipe.image, pipe.x, pipe.y, pipeWidth, pipeHeight)
+                    pipe.x -= 2        //move the pipe to the left by 2 pixels
+                    if (pipe.x + pipeWidth < 0) {  //if the pipe is out of the canvas, remove it from the array
+                        pipes.splice(i, 1)
+                        i--
+                        }
+                    }
+                else {          //if i is odd, draw the pipe upside down because it is the top pipe
+                    let pipe = pipes[i]
+                    ctx.save()
+                    ctx.translate(pipe.x + pipeWidth/2, pipe.y + pipeHeight/2)  //translate the canvas to the center of the pipe
+                    ctx.rotate(Math.PI)   //rotate the canvas by 180 degrees so that we can draw the pipe upside down
+                    ctx.drawImage(pipe.image, -pipeWidth/2, -pipeHeight/2)  //draw the pipe (we don't need to specify the width and height because we have already translated the canvas to the center of the pipe)
+                    ctx.restore()  //restore the canvas to its original position
+                    pipe.x -= 2 //move the pipe to the left by 2 pixels
+                    if (pipe.x + pipeWidth < 0) { //if the pipe is out of the canvas, remove it from the array
+                        pipes.splice(i, 1)
+                        i--
+                        }
+                    }
+                }
+
+
+        }
+
+        // --  Update the bird's current frame  --  //
+        function birdMovement(){
+            requestAnimationFrame(birdMovement);
+
+            let now = Date.now(); //current time
+
+            if (now - time2 < 70) //if the time between the last frame and the current frame is less than 70ms, do not change the current frame of the bird
+                return;
+
+            time2 = now;
+
+            //Update the bird's frame
+            k += 1;
+            if (k == 8) {  //if k is 8, it means that the last frame of the sprite sheet has been reached
+                k = 0;    //reset k to 0
+            }
+        }
+
+        //  --  Bird Movement (UP & DOWN)  --  //
+        let step = 5   //step for bird movement
+        document.body.onkeydown = function (evt) {
+            if (evt.key === "ArrowUp") {
+                yBird -= step;
+                evt.preventDefault();  //prevent the default action of the key
+            }
+            else if (evt.key === "ArrowDown") {
+                yBird += step;
+                evt.preventDefault();
+            }
+        }
+
+        //  --  Create Pipes  --  //
+        let y = 0; //the position of the bottom pipe
+        let gap = 0; //the gap between the top and bottom pipes
+        let botPipesGap = 1500 //this is the initial time between the creation of the pipes (we will use it to generate the pipes in a random time)
+
+        function createPipe() { //create a pair of pipes
+            //y is the y position of the bottom pipe which is a random number between 200 and canvas.height - pipeHeight/2 + 100
+            //the position of the top pipe depends on the position of the bottom pipe 
+            y = generateRandomNumber(y, 200, (canvas.height - pipeHeight/2 + 100), 0)  //random number between 200 and canvas.height - pipeHeight/2 + 100
+            pipes.push({ //push the bottom pipe to the array
+                x: canvas.width, //the initial x position of the pipe when it is created is the width of the canvas (this is changing continuously in the draw function)
+                y,
+                image: pipe,
+            })
+
+            gap = generateRandomNumber(gap, 100, 200, 12) //the gap between the top and bottom pipes is a random number between 100 and 200
+            pipes.push({ //push the top pipe to the array
+                x: canvas.width,  //same as the bottom pipe
+                y: y - pipeHeight - gap, //the y position of the top pipe is the y position of the bottom pipe minus the height of the pipe and the random gap
+                image: pipe,
+            })
+
+            botPipesGap = generateRandomNumber(botPipesGap, 2200, 3000, 200) //random number between 2200 and 3000
+            setTimeout(createPipe, botPipesGap) //call the createPipe function after botPipesGap milliseconds to create the next pair of pipes
+        }
+
+        setTimeout(createPipe, botPipesGap)  //the initial call of the createPipe function after 500ms to create the first pair of pipes
+
+    </script>
+</html>
